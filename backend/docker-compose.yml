@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: your_password
       POSTGRES_DB: beleqet_db
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -19,7 +19,7 @@ services:
     container_name: beleqet-redis
     restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redis_data:/data
 
@@ -30,12 +30,12 @@ services:
     container_name: beleqet-backend
     restart: unless-stopped
     ports:
-      - "4000:4000"
+      - '4000:4000'
     environment:
       - NODE_ENV=development
       - PORT=4000
       - FRONTEND_URL=http://localhost:3000
-      - DATABASE_URL=postgresql://beleqet_user:your_password@db:54y32/beleqet_db
+      - DATABASE_URL=postgresql://beleqet_user:your_password@db:5432/beleqet_db
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
