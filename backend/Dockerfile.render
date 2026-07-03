@@ -1,0 +1,68 @@
+# ============================================================================
+# All-in-one image for Render: bundles Postgres + Redis + the NestJS API in a
+# single container, managed by supervisord. Use this when Render is deploying
+# a single prebuilt Docker image (no docker-compose, no separate DB service).
+#
+# NOTE: Render's web service filesystem is EPHEMERAL — every restart, redeploy,
+# or scale-to-zero wake-up runs this image fresh, so the embedded Postgres data
+# directory is wiped each time. Fine for running the full stack from one image,
+# but it is not durable storage. For real persistence, attach a Render Disk
+# (paid plans) mounted at /var/lib/postgresql/data, or point DATABASE_URL /
+# REDIS_HOST at externally hosted services instead.
+#
+# Build & push:
+#   docker build -f Dockerfile.render -t ghcr.io/<you>/beleqet-docker-image:latest .
+#   docker push ghcr.io/<you>/beleqet-docker-image:latest
+# ============================================================================
+
+# ---- Build stage ------------------------------------------------------------
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache openssl
+
+COPY package*.json ./
+COPY prisma ./prisma/
+
+RUN npm ci
+
+COPY . .
+
+RUN npm run prisma:generate
+RUN npm run build
+
+# ---- Production stage --------------------------------------------------------
+FROM node:20-alpine
+
+RUN apk add --no-cache openssl bash su-exec supervisor postgresql16 redis
+
+ENV PGDATA=/var/lib/postgresql/data \
+    POSTGRES_USER=beleqet_user \
+    POSTGRES_PASSWORD=your_password \
+    POSTGRES_DB=beleqet_db \
+    REDIS_HOST=127.0.0.1 \
+    REDIS_PORT=6379 \
+    REDIS_TLS=false \
+    NODE_ENV=production \
+    PORT=4000
+
+WORKDIR /app
+
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+
+RUN mkdir -p /var/lib/postgresql/data /run/postgresql \
+    && chown -R postgres:postgres /var/lib/postgresql /run/postgresql
+
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY docker/start-app.sh /usr/local/bin/start-app.sh
+COPY docker/supervisord.conf /etc/supervisord.conf
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/start-app.sh
+
+EXPOSE 4000
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["supervisord", "-c", "/etc/supervisord.conf", "-n"]
