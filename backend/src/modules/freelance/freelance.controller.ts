@@ -34,7 +34,7 @@ export class FreelanceController {
 
   @Get('contracts/:id')
   @UseGuards(JwtAuthGuard) @ApiBearerAuth()
-  contract(@Param('id') id: string) { return this.svc.getContract(id); }
+  contract(@Param('id') id: string, @CurrentUser() u: CurrentUserPayload) { return this.svc.getContract(id, u.userId); }
 
   @Patch('milestones/:id/approve')
   @UseGuards(JwtAuthGuard) @ApiBearerAuth()

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 
 const navItems = [
   { label: "Find Jobs", href: "/jobs" },
@@ -9,6 +12,8 @@ const navItems = [
 ];
 
 export default function Header() {
+  const { user, loading, logout } = useAuth();
+
   return (
     <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-border">
       <div className="container-page flex items-center justify-between h-16">
@@ -30,12 +35,26 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="hidden sm:inline-block text-sm font-medium text-ink hover:text-brandGreen transition-colors"
-          >
-            Login / Sign Up
-          </Link>
+          {!loading && (
+            user ? (
+              <div className="hidden sm:flex items-center gap-3">
+                <span className="text-sm font-medium text-ink">Hi, {user.firstName}</span>
+                <button
+                  onClick={logout}
+                  className="text-sm font-medium text-ink hover:text-brandGreen transition-colors"
+                >
+                  Log Out
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="hidden sm:inline-block text-sm font-medium text-ink hover:text-brandGreen transition-colors"
+              >
+                Login / Sign Up
+              </Link>
+            )
+          )}
           <Link
             href="/post-job"
             className="inline-flex items-center rounded-full bg-brandGreen px-4 py-2 text-sm font-semibold text-white hover:bg-darkGreen transition-colors"

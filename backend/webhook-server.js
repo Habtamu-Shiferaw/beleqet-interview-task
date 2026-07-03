@@ -1,12 +1,19 @@
+require('dotenv').config();
 const express = require('express');
 const crypto = require('crypto');
 const app = express();
 const port = 4000;
 
-const CHAPA_SECRET = 'CHASECK_TEST-EGMHJJxUf6NY3GNYgDgJwSF7pIwANKN5';
-// NOTE: Set your webhook secret here. If you haven't set one in Chapa yet, 
-// you must set it in your Chapa Dashboard -> Settings -> Webhooks, and paste it here.
-const WEBHOOK_SECRET = 'CVD18HIsGTJEyd7rDDdg1qDWcouvBNYvHdRQyoUW8SA';
+// Set CHAPA_SECRET_KEY and CHAPA_WEBHOOK_SECRET in backend/.env (see .env.example).
+// If you haven't set a webhook secret in Chapa yet, set one in your Chapa
+// Dashboard -> Settings -> Webhooks, then put it in .env.
+const CHAPA_SECRET = process.env.CHAPA_SECRET_KEY;
+const WEBHOOK_SECRET = process.env.CHAPA_WEBHOOK_SECRET;
+
+if (!CHAPA_SECRET || !WEBHOOK_SECRET) {
+  console.error('❌ Missing CHAPA_SECRET_KEY or CHAPA_WEBHOOK_SECRET in backend/.env');
+  process.exit(1);
+}
 
 // We use raw body to properly compute the HMAC hash
 app.use(express.json({
@@ -34,7 +41,10 @@ app.post('/api/v1/escrow/callback', (req, res) => {
 
   console.log('Computed Hash:', hash);
 
-  if (hash !== signature) {
+  const hashBuf = Buffer.from(hash, 'utf8');
+  const signatureBuf = Buffer.from(signature, 'utf8');
+  const signatureValid = hashBuf.length === signatureBuf.length && crypto.timingSafeEqual(hashBuf, signatureBuf);
+  if (!signatureValid) {
     console.log('❌ Signature verification FAILED! Hash mismatch.');
     return res.status(401).send('Invalid Webhook Signature');
   }

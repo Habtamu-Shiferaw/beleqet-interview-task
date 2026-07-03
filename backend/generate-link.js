@@ -1,3 +1,4 @@
+require('dotenv').config();
 const ngrokUrl = process.argv[2];
 
 if (!ngrokUrl) {
@@ -6,7 +7,12 @@ if (!ngrokUrl) {
   process.exit(1);
 }
 
-const CHAPA_SECRET = 'process.env.CHAPA_SECRET_KEY || 'REPLACE_WITH_YOUR_CHAPA_KEY'';
+const CHAPA_SECRET = process.env.CHAPA_SECRET_KEY;
+
+if (!CHAPA_SECRET) {
+  console.error('❌ Missing CHAPA_SECRET_KEY in backend/.env');
+  process.exit(1);
+}
 
 async function generateLink() {
   console.log(`Generating checkout link with callback: ${ngrokUrl}/api/v1/escrow/callback`);

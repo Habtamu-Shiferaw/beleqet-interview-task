@@ -38,14 +38,19 @@ export class WalletService {
   async withdraw(userId: string, dto: WithdrawDto) {
     const wallet = await this.prisma.freelancerWallet.findUnique({ where: { userId } });
     if (!wallet) throw new NotFoundException('Wallet not found');
-    if (wallet.availableBalance < dto.amount) throw new BadRequestException('Insufficient available balance');
 
-    // Step 1: Deduct balance and create a PENDING transaction atomically
+    // Step 1: Atomically deduct balance only if sufficient funds remain, then log the
+    // pending transaction. The conditional `availableBalance: { gte: amount }` guard
+    // (checked by Prisma's WHERE clause, not a separate read) prevents two concurrent
+    // withdrawals from both passing a stale balance check and driving it negative.
     const { tx } = await this.prisma.$transaction(async (prisma) => {
-      await prisma.freelancerWallet.update({
-        where: { userId },
+      const updateResult = await prisma.freelancerWallet.updateMany({
+        where: { userId, availableBalance: { gte: dto.amount } },
         data: { availableBalance: { decrement: dto.amount } },
       });
+      if (updateResult.count === 0) {
+        throw new BadRequestException('Insufficient available balance');
+      }
       const tx = await prisma.walletTransaction.create({
         data: { walletId: wallet.id, type: 'DEBIT_WITHDRAWAL', amount: dto.amount, note: `Withdrawal via ${dto.method} — pending` },
       });

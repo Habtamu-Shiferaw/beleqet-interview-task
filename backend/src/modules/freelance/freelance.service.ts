@@ -1,19 +1,54 @@
 import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import {
+  IsArray, IsInt, IsNumber, IsOptional, IsPositive, IsString, IsUUID, Max, MaxLength, Min,
+} from 'class-validator';
 import { PrismaService } from '../../prisma/prisma.service';
 
 export class CreateFreelanceJobDto {
-  title: string; description: string; categoryId: string;
-  budgetMin: number; budgetMax: number; pricingType?: string;
-  deadlineDays: number; skills: string[];
-  
+  @IsString() @MaxLength(150)
+  title: string;
+
+  @IsString() @MaxLength(5000)
+  description: string;
+
+  @IsUUID()
+  categoryId: string;
+
+  @IsNumber() @IsPositive()
+  budgetMin: number;
+
+  @IsNumber() @IsPositive()
+  budgetMax: number;
+
+  @IsOptional() @IsString()
+  pricingType?: string;
+
+  @IsInt() @Min(1) @Max(365)
+  deadlineDays: number;
+
+  @IsArray() @IsString({ each: true })
+  skills: string[];
+
   // New Freelance fields
+  @IsOptional() @IsString()
   locationPreference?: string;
+
+  @IsOptional() @IsString()
   experienceLevel?: string;
+
+  @IsOptional() @IsArray() @IsString({ each: true })
   attachments?: string[];
 }
 export class CreateBidDto {
-  amount: number; timelineDays: number; coverLetter: string;
+  @IsNumber() @IsPositive() @Max(1_000_000)
+  amount: number;
+
+  @IsInt() @Min(1) @Max(365)
+  timelineDays: number;
+
+  @IsString() @MaxLength(3000)
+  coverLetter: string;
 }
 
 @Injectable()
@@ -130,9 +165,9 @@ export class FreelanceService {
     });
   }
 
-  async getContract(id: string) {
-    const c = await this.prisma.contract.findUnique({
-      where: { id },
+  async getContract(id: string, userId: string) {
+    const c = await this.prisma.contract.findFirst({
+      where: { id, OR: [{ clientId: userId }, { freelancerId: userId }] },
       include: {
         milestones: { include: { deliverables: true } },
         freelanceJob: true,

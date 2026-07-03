@@ -43,8 +43,11 @@ export class EscrowController {
       const hash = crypto.createHmac('sha256', secret)
         .update(req.rawBody)
         .digest('hex');
-      
-      if (hash !== signature) {
+
+      const hashBuf = Buffer.from(hash, 'utf8');
+      const signatureBuf = Buffer.from(signature, 'utf8');
+      const signatureValid = hashBuf.length === signatureBuf.length && crypto.timingSafeEqual(hashBuf, signatureBuf);
+      if (!signatureValid) {
         throw new UnauthorizedException('Invalid Webhook Signature');
       }
     }
